@@ -92,9 +92,6 @@ def user_logout(request):
     messages.success(request, "Logged out successfully")
     return redirect("home")
 
-
-
-
 def home(request):
     return render(request,'home.html')
 
@@ -109,8 +106,11 @@ def adminhome(request):
     return render(request, 'admin/adminhome.html', context)
 
 
+
 def stafhome(request):
     return render(request, 'staf/stafhome.html')
+
+
 
 def add_menu_item(request):
     if "user_id" not in request.session or request.session.get("user_type") != "Staf":
@@ -135,3 +135,105 @@ def add_menu_item(request):
 def menu_list(request):
     menu_items = MenuCard.objects.all()  # Fetch all menu items
     return render(request, "staf/menu_list.html", {"menu_items": menu_items})
+
+
+def customerhome(request):
+    user_id = request.session.get("user_id")  # Ensure user is logged in
+
+    if not user_id:
+        return redirect("login")  # Redirect if not logged in
+
+    customer = get_object_or_404(Customer, id=user_id)
+    
+    # Get the latest order for the logged-in user
+    latest_order = Order.objects.filter(customer=customer, paid=True).order_by('-id').first()
+
+    return render(request, "customer/customerhome.html", {"latest_order": latest_order})
+
+
+
+
+def about(request):
+    user_id = request.session.get("user_id")  # Ensure user is logged in
+
+    if not user_id:
+        return redirect("login")  # Redirect if not logged in
+    customer = get_object_or_404(Customer, id=user_id)
+    latest_order = Order.objects.filter(customer=customer, paid=True).order_by('-id').first()
+    return render(request, 'customer/about.html',{"latest_order": latest_order})
+
+
+
+def menulist(request):
+    menu_items = MenuCard.objects.all()  # Fetch all menu items
+    return render(request, 'customer/menulist.html', {'menu_items': menu_items})
+
+
+import razorpay
+from django.conf import settings
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.hashers import check_password
+from django.urls import reverse
+from django.http import JsonResponse
+from .models import MenuCard, Order, Customer, Staf, AdminReg
+from .forms import CustomerRegistrationForm, StafRegistrationForm, AdminRegistrationForm, LoginForm
+
+# --- Order Placement ---
+def order_item(request, item_id):
+    user_id = request.session.get("user_id")  # Use "user_id" instead of "customer_id"
+    
+    if not user_id:
+        return redirect("login")  # Redirect if not logged in
+
+    customer = get_object_or_404(Customer, id=user_id)  # Fetch customer based on "user_id"
+    item = get_object_or_404(MenuCard, id=item_id)
+
+    # Initialize Razorpay client
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+    # Create Razorpay Order
+    payment_data = {
+        "amount": int(item.price * 100),  # Convert price to paise
+        "currency": "INR",
+        "receipt": f"order_{customer.id}_{item.id}",
+        "payment_capture": 1  # Auto capture payment
+    }
+
+    razorpay_order = client.order.create(data=payment_data)
+
+    # Save order in database
+    order = Order.objects.create(
+        customer=customer,
+        item=item,
+        amount=item.price,
+        razorpay_order_id=razorpay_order["id"]
+    )
+
+    return render(request, "customer/payment.html", {
+        "order": order,
+        "razorpay_key": settings.RAZORPAY_KEY_ID,
+        "razorpay_order_id": razorpay_order["id"],
+        "amount": payment_data["amount"]
+    })
+
+
+# --- Payment Success ---
+def payment_success(request):
+    if request.method == "POST":
+        payment_id = request.POST.get("razorpay_payment_id")
+        order_id = request.POST.get("razorpay_order_id")
+        signature = request.POST.get("razorpay_signature")
+
+        order = get_object_or_404(Order, razorpay_order_id=order_id)
+        order.razorpay_payment_id = payment_id
+        order.razorpay_signature = signature
+        order.paid = True
+        order.save()
+
+        return JsonResponse({"status": "Payment successful", "redirect_url": reverse("order_details", args=[order.id])})
+    return JsonResponse({"status": "Payment failed"}, status=400)
+
+def order_details(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    return render(request, "customer/order_details.html", {"order": order})

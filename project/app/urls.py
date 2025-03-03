@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('stafhome/', views.stafhome, name='stafhome'),  # ✅ Ensure it's correctly defined
     path('adminhome/', views.adminhome, name='adminhome'), 
+    path('customerhome/', views.customerhome, name='customerhome'),  # ✅ Ensure it's correctly defined
     path("registerpatient/", views.customer_register, name="customer_register"),
     path("registerstaf/", views.seller_register, name="seller_register"),
     path("registeradmin/", views.admin_register, name="admin_register"),
@@ -12,6 +13,13 @@ urlpatterns = [
     path("logout/", views.user_logout, name="logout"),
     path('add-menu/', views.add_menu_item, name='add_menu'),
     path('menu/', views.menu_list, name='menu_list'),
+    path('about/', views.about, name='about'),
+    path('menulist/', views.menulist, name='menulist'),
+    path("order/<int:item_id>/", views.order_item, name="order_item"),
+    path("payment-success/", views.payment_success, name="payment_success"),
+    path("order-details/<int:order_id>/", views.order_details, name="order_details"),
+
+
    
 
 ]
