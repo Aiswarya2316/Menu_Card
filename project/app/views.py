@@ -98,10 +98,25 @@ def home(request):
 
 
 def adminhome(request):
+    total_customers = Customer.objects.count()
+    total_staff = Staf.objects.count()
+    total_orders = Order.objects.count()
+    total_items = MenuCard.objects.count()  # Count total menu items
+
+    customers = Customer.objects.all()
+    staff = Staf.objects.all()
+    orders = Order.objects.all()
+    menu_items = MenuCard.objects.all()  # Fetch all menu items
+
     context = {
-        "total_users": 120,  
-        "total_orders": 450,
-        "total_revenue": 12000,
+        'total_customers': total_customers,
+        'total_staff': total_staff,
+        'total_orders': total_orders,
+        'total_items': total_items,  # Pass total menu items
+        'customers': customers,
+        'staff': staff,
+        'orders': orders,
+        'menu_items': menu_items,  # Pass menu items to template
     }
     return render(request, 'admin/adminhome.html', context)
 
