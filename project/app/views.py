@@ -127,6 +127,12 @@ def stafhome(request):
 
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import MenuCard
+from .forms import MenuCardForm  # Ensure you have this form
+
+# Add Menu Item (Already implemented)
 def add_menu_item(request):
     if "user_id" not in request.session or request.session.get("user_type") != "Staf":
         messages.error(request, "You must be logged in as a staff member to add menu items.")
@@ -146,6 +152,37 @@ def add_menu_item(request):
         form = MenuCardForm()
 
     return render(request, "staf/add_menu.html", {"form": form})
+
+# Edit Menu Item
+def edit_menu_item(request, item_id):
+    if "user_id" not in request.session or request.session.get("user_type") != "Staf":
+        messages.error(request, "You must be logged in as a staff member to edit menu items.")
+        return redirect("login")
+
+    menu_item = get_object_or_404(MenuCard, id=item_id, staf_id=request.session["user_id"])  # Ensure staff can edit only their items
+
+    if request.method == "POST":
+        form = MenuCardForm(request.POST, request.FILES, instance=menu_item)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Menu item updated successfully!")
+            return redirect("stafhome")
+    else:
+        form = MenuCardForm(instance=menu_item)
+
+    return render(request, "staf/edit_menu.html", {"form": form, "menu_item": menu_item})
+
+# Delete Menu Item
+def delete_menu_item(request, item_id):
+    if "user_id" not in request.session or request.session.get("user_type") != "Staf":
+        messages.error(request, "You must be logged in as a staff member to delete menu items.")
+        return redirect("login")
+
+    menu_item = get_object_or_404(MenuCard, id=item_id, staf_id=request.session["user_id"])  # Ensure staff can delete only their items
+    menu_item.delete()
+    messages.success(request, "Menu item deleted successfully!")
+    return redirect("stafhome")
+
 
 def menu_list(request):
     menu_items = MenuCard.objects.all()  # Fetch all menu items
